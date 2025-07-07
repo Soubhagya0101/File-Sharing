@@ -635,10 +635,27 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
-        import { getAuth, signInWithPopup, GoogleAuthProvider, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut as firebaseSignOut } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js';
-        import { getStorage, ref, uploadBytes, listAll, getDownloadURL, deleteObject, getMetadata } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js';
-
+       import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
+  import {
+    getAuth,
+    signInWithPopup,
+    GoogleAuthProvider,
+    signInAnonymously,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    sendEmailVerification,
+    onAuthStateChanged,
+    signOut as firebaseSignOut
+  } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js';
+  import {
+    getStorage,
+    ref,
+    uploadBytes,
+    listAll,
+    getDownloadURL,
+    deleteObject,
+    getMetadata
+  } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js';
         // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyB2t5nCa-fJGKbB3Djkfmz9HgwXmMUAsV0",
@@ -814,59 +831,64 @@
             }
         };
 
-        const signUpWithEmail = async () => {
-            if (isAuthInProgress) return;
-            
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
-            
-            if (!email || !password) {
-                showStatus('Please enter both email and password', 'error');
-                return;
-            }
-            
-            if (!email.includes('@') || !email.includes('.')) {
-                showStatus('Please enter a valid email address', 'error');
-                return;
-            }
-            
-            if (password.length < 6) {
-                showStatus('Password must be at least 6 characters long', 'error');
-                return;
-            }
-            
-            isAuthInProgress = true;
-            
-            try {
-                signupBtn.disabled = true;
-                signupBtn.innerHTML = '<span class="loading"></span>Creating account...';
-                
-                const result = await createUserWithEmailAndPassword(auth, email, password);
-                console.log('Account created successfully:', result.user.email);
-                showStatus('Account created successfully!', 'success');
-                hideEmailForm();
-                
-            } catch (error) {
-                console.error('Account creation error:', error);
-                let errorMessage = 'Account creation failed';
-                
-                if (error.code === 'auth/email-already-in-use') {
-                    errorMessage = 'An account with this email already exists. Try signing in instead.';
-                } else if (error.code === 'auth/invalid-email') {
-                    errorMessage = 'Invalid email address format.';
-                } else if (error.code === 'auth/weak-password') {
-                    errorMessage = 'Password is too weak. Please use a stronger password.';
-                } else if (error.message) {
-                    errorMessage = `Account creation failed: ${error.message}`;
-                }
-                
-                showStatus(errorMessage, 'error');
-            } finally {
-                isAuthInProgress = false;
-                signupBtn.disabled = false;
-                signupBtn.innerHTML = 'Sign Up';
-            }
-        };
+    const signUpWithEmail = async () => {
+    if (isAuthInProgress) return;
+
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+
+    if (!email || !password) {
+        showStatus('Please enter both email and password', 'error');
+        return;
+    }
+
+    if (!email.includes('@') || !email.includes('.')) {
+        showStatus('Please enter a valid email address', 'error');
+        return;
+    }
+
+    if (password.length < 6) {
+        showStatus('Password must be at least 6 characters long', 'error');
+        return;
+    }
+
+    isAuthInProgress = true;
+
+    try {
+        signupBtn.disabled = true;
+        signupBtn.innerHTML = '<span class="loading"></span>Creating account...';
+
+        const result = await createUserWithEmailAndPassword(auth, email, password);
+        const user = result.user;
+
+        // 🚀 Send verification email
+        await sendEmailVerification(user);
+        console.log('Verification email sent to:', user.email);
+
+        showStatus(`Account created! A verification email was sent to ${user.email}`, 'success');
+        hideEmailForm();
+
+    } catch (error) {
+        console.error('Account creation error:', error);
+        let errorMessage = 'Account creation failed';
+
+        if (error.code === 'auth/email-already-in-use') {
+            errorMessage = 'An account with this email already exists. Try signing in instead.';
+        } else if (error.code === 'auth/invalid-email') {
+            errorMessage = 'Invalid email address format.';
+        } else if (error.code === 'auth/weak-password') {
+            errorMessage = 'Password is too weak. Please use a stronger password.';
+        } else if (error.message) {
+            errorMessage = `Account creation failed: ${error.message}`;
+        }
+
+        showStatus(errorMessage, 'error');
+    } finally {
+        isAuthInProgress = false;
+        signupBtn.disabled = false;
+        signupBtn.innerHTML = 'Create Account';
+    }
+};
 
         const signOut = async () => {
             try {
@@ -881,28 +903,37 @@
 
         // Auth state observer
         onAuthStateChanged(auth, (user) => {
-            currentUser = user;
-            if (user) {
-                // User is signed in
-                authSection.style.display = 'none';
-                mainContent.classList.add('show');
-                userInfo.style.display = 'block';
-                
-                const displayName = user.displayName || user.email || 'Anonymous User';
-                userDisplay.textContent = displayName;
-                
-                console.log('User signed in:', displayName);
-                testConnection();
-                setTimeout(loadFiles, 1000);
-            } else {
-                // User is signed out
-                authSection.style.display = 'block';
-                mainContent.classList.remove('show');
-                userInfo.style.display = 'none';
-                hideEmailForm();
-                console.log('User signed out');
-            }
-        });
+    currentUser = user;
+
+    if (user) {
+        if (user.emailVerified || user.providerData[0]?.providerId === 'google.com') {
+            // ✅ Verified email or Google login
+            authSection.style.display = 'none';
+            mainContent.classList.add('show');
+            userInfo.style.display = 'block';
+
+            const displayName = user.displayName || user.email || 'Anonymous User';
+            userDisplay.textContent = displayName;
+
+            console.log('User signed in:', displayName);
+            testConnection();
+            setTimeout(loadFiles, 1000);
+
+        } else {
+            // 🚫 Not verified
+            showStatus('Please verify your email before accessing SKVault.', 'error');
+            auth.signOut(); // auto sign out unverified user
+        }
+
+    } else {
+        // 🔓 Signed out
+        authSection.style.display = 'block';
+        mainContent.classList.remove('show');
+        userInfo.style.display = 'none';
+        hideEmailForm();
+        console.log('User signed out');
+    }
+});
 
         // File operations
         const getFileIcon = (fileName) => {
