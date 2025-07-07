@@ -462,27 +462,40 @@
             </div>
         </div>
 
-        <!-- Authentication Section -->
-        <div class="auth-section" id="auth-section">
-            <h2 style="margin-bottom: 30px; color: #1f2937;">Sign in to access your files</h2>
-            <div class="auth-buttons">
-                <button class="auth-btn google" onclick="signInWithGoogle()">
-                    <span>🔍</span>
-                    Sign in with Google
-                </button>
-                <button class="auth-btn anonymous" onclick="signInAnonymously()">
-                    <span>👤</span>
-                    Continue as Guest
-                </button>
-                <button class="auth-btn email" onclick="signInWithEmail()">
-                    <span>📧</span>
-                    Sign in with Email
-                </button>
-            </div>
-            <p style="margin-top: 20px; color: #6b7280; font-size: 0.9em;">
-                Your files are private and secure. Guest users can access files temporarily.
-            </p>
-        </div>
+        <!-- Replace your auth-section div with this: -->
+<div class="auth-section" id="auth-section">
+    <h2 style="margin-bottom: 30px; color: #1f2937;">Sign in to access your files</h2>
+    <div class="auth-buttons">
+        <button class="auth-btn google" id="google-btn">
+            <span>🔍</span>
+            Sign in with Google
+        </button>
+        <button class="auth-btn anonymous" id="anonymous-btn">
+            <span>👤</span>
+            Continue as Guest
+        </button>
+        <button class="auth-btn email" id="email-btn">
+            <span>📧</span>
+            Sign in with Email
+        </button>
+    </div>
+    <p style="margin-top: 20px; color: #6b7280; font-size: 0.9em;">
+        Your files are private and secure. Guest users can access files temporarily.
+    </p>
+</div>
+
+<!-- Also update the logout button: -->
+<div class="user-info" id="user-info">
+    <span id="user-display"></span>
+    <button class="logout-btn" id="logout-btn">Logout</button>
+</div>
+
+<!-- And update the refresh button: -->
+<div class="section-title">
+    📂 Your Files
+    <button class="refresh-btn" id="refresh-btn">Refresh</button>
+</div>
+
         
         <!-- Main Content -->
         <div class="content" id="main-content">
@@ -565,6 +578,10 @@
         const connectionStatus = document.getElementById('connection-status');
 
         // Authentication functions
+         console.log('Functions attached to window:', {
+        signInWithGoogle: typeof window.signInWithGoogle,
+        signInAnonymously: typeof window.signInAnonymously,
+        signInWithEmail: typeof window.signInWithEmail
         window.signInWithGoogle = async () => {
             try {
                 const provider = new GoogleAuthProvider();
