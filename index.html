@@ -990,22 +990,33 @@
         const userFolder = `users/${currentUser.uid}/`;
         const listRef = ref(storage, userFolder);
 
-        // Use Promise.race to timeout if Firebase is too slow
-        await Promise.race([
+        const result = await Promise.race([
             listAll(listRef),
             timeoutPromise
         ]);
 
-        connectionStatus.innerHTML = '✅ Connected to Firebase Storage';
+        connectionStatus.innerHTML = result.items.length === 0
+            ? '✅ Connected (no files yet)'
+            : '✅ Connected to Firebase Storage';
+
         connectionStatus.className = 'connection-status';
         isConnected = true;
     } catch (error) {
-        console.error('Connection test failed:', error);
-        connectionStatus.innerHTML = '❌ Connection failed: ' + error.message;
-        connectionStatus.className = 'connection-status error';
-        isConnected = false;
+        console.error('[Connection Test Error]', error);
+
+        if (error.code === 'storage/object-not-found') {
+            // Folder doesn't exist yet — treat as success!
+            connectionStatus.innerHTML = '✅ Connected (no files yet)';
+            connectionStatus.className = 'connection-status';
+            isConnected = true;
+        } else {
+            connectionStatus.innerHTML = '❌ Connection failed: ' + error.message;
+            connectionStatus.className = 'connection-status error';
+            isConnected = false;
+        }
     }
 };
+
 
 
         const uploadFile = async (file) => {
