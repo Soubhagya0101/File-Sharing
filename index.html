@@ -977,27 +977,36 @@
             return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
         };
 
-        const testConnection = async () => {
-            try {
-                connectionStatus.innerHTML = '<span class="loading"></span>Testing connection...';
-                connectionStatus.className = 'connection-status';
-                
-                // Test by trying to list files
-                const userFolder = `users/${currentUser.uid}/`;
-                const listRef = ref(storage, userFolder);
-                await listAll(listRef);
-                
-                connectionStatus.innerHTML = '✅ Connected to Firebase Storage';
-                connectionStatus.className = 'connection-status';
-                isConnected = true;
-                
-            } catch (error) {
-                console.error('Connection test failed:', error);
-                connectionStatus.innerHTML = '❌ Connection failed: ' + error.message;
-                connectionStatus.className = 'connection-status error';
-                isConnected = false;
-            }
-        };
+       const testConnection = async () => {
+    const TIMEOUT = 7000; // 7 seconds
+    const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Connection timeout after 7s')), TIMEOUT)
+    );
+
+    connectionStatus.innerHTML = '<span class="loading"></span>Testing connection...';
+    connectionStatus.className = 'connection-status';
+
+    try {
+        const userFolder = `users/${currentUser.uid}/`;
+        const listRef = ref(storage, userFolder);
+
+        // Use Promise.race to timeout if Firebase is too slow
+        await Promise.race([
+            listAll(listRef),
+            timeoutPromise
+        ]);
+
+        connectionStatus.innerHTML = '✅ Connected to Firebase Storage';
+        connectionStatus.className = 'connection-status';
+        isConnected = true;
+    } catch (error) {
+        console.error('Connection test failed:', error);
+        connectionStatus.innerHTML = '❌ Connection failed: ' + error.message;
+        connectionStatus.className = 'connection-status error';
+        isConnected = false;
+    }
+};
+
 
         const uploadFile = async (file) => {
             if (!currentUser) {
