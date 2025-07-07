@@ -602,7 +602,7 @@
             </div>
 
             <div class="quota-info">
-                <strong>📊 Storage Info:</strong> Max file size: 50MB | Total storage: 5GB free tier
+                <strong>📊 Storage Info:</strong> Max file size: 50MB | Total storage: 1GB free tier
             </div>
 
             <div class="upload-section">
@@ -661,7 +661,7 @@
             apiKey: "AIzaSyB2t5nCa-fJGKbB3Djkfmz9HgwXmMUAsV0",
             authDomain: "skvault-74d9c.firebaseapp.com",
             projectId: "skvault-74d9c",
-            storageBucket: "skvault-74d9c.firebasestorage.app",
+          storageBucket: "skvault-74d9c.appspot.com",
             messagingSenderId: "50827927412",
             appId: "1:50827927412:web:144ced35567480b184d621",
             measurementId: "G-BPGKT6YHFM"
@@ -688,6 +688,7 @@
         const userDisplay = document.getElementById('user-display');
         const uploadArea = document.getElementById('upload-area');
         const fileInput = document.getElementById('file-input');
+        const chooseFilesBtn = document.getElementById('choose-files-btn');
         const statusContainer = document.getElementById('status-container');
         const filesContainer = document.getElementById('files-container');
         const connectionStatus = document.getElementById('connection-status');
@@ -696,7 +697,6 @@
         const emailBtn = document.getElementById('email-btn');
         const logoutBtn = document.getElementById('logout-btn');
         const refreshBtn = document.getElementById('refresh-btn');
-        const chooseFilesBtn = document.getElementById('choose-files-btn');
         
         // Email form elements
         const emailForm = document.getElementById('email-form');
@@ -711,34 +711,45 @@
             if (isAuthInProgress) return;
             isAuthInProgress = true;
             
-            try {
-                googleBtn.disabled = true;
-                googleBtn.innerHTML = '<span class="loading"></span>Signing in...';
-                
-                const provider = new GoogleAuthProvider();
-                provider.addScope('email');
-                provider.addScope('profile');
-                
-                const result = await signInWithPopup(auth, provider);
-                console.log('Google sign-in successful:', result.user.email);
-                showStatus('Google sign-in successful!', 'success');
-                
-            } catch (error) {
-                console.error('Google sign-in error:', error);
-                let errorMessage = 'Google sign-in failed';
-                
-                if (error.code === 'auth/popup-closed-by-user') {
-                    errorMessage = 'Sign-in popup was closed. Please try again.';
-                } else if (error.code === 'auth/popup-blocked') {
-                    errorMessage = 'Popup blocked. Please allow popups for this site.';
-                } else if (error.code === 'auth/network-request-failed') {
-                    errorMessage = 'Network error. Please check your connection.';
-                } else if (error.message) {
-                    errorMessage = `Google sign-in failed: ${error.message}`;
-                }
-                
-                showStatus(errorMessage, 'error');
-            } finally {
+          try {
+    googleBtn.disabled = true;
+    googleBtn.innerHTML = '<span class="loading"></span>Signing in...';
+
+    const provider = new GoogleAuthProvider();
+    provider.addScope('email');
+    provider.addScope('profile');
+
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+
+    console.log('Google sign-in successful:', user);
+
+    if (user.emailVerified || user.providerData[0]?.providerId === 'google.com') {
+        showStatus(`Welcome, ${user.displayName || user.email}!`, 'success');
+        // You can call your `loadFiles()` or show app section here
+    } else {
+        showStatus('Email not verified. Please verify before proceeding.', 'error');
+        await auth.signOut();
+    }
+
+} catch (error) {
+    console.error('Google sign-in error:', error);
+    let errorMessage = 'Google sign-in failed';
+
+    if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Sign-in popup was closed. Please try again.';
+    } else if (error.code === 'auth/popup-blocked') {
+        errorMessage = 'Popup blocked. Please allow popups for this site.';
+    } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Please check your connection.';
+    } else if (error.message) {
+        errorMessage = `Google sign-in failed: ${error.message}`;
+    }
+
+    showStatus(errorMessage, 'error');
+
+} 
+ finally {
                 isAuthInProgress = false;
                 googleBtn.disabled = false;
                 googleBtn.innerHTML = '<span>🔍</span>Sign in with Google';
@@ -1186,14 +1197,6 @@
         });
 
         // File upload events
-        chooseFilesBtn.addEventListener('click', () => {
-            if (!currentUser) {
-                showStatus('Please sign in to upload files', 'error');
-                return;
-            }
-            fileInput.click();
-        });
-
         uploadArea.addEventListener('click', () => {
             if (!currentUser) {
                 showStatus('Please sign in to upload files', 'error');
@@ -1208,6 +1211,10 @@
                 files.forEach(uploadFile);
             }
         });
+        chooseFilesBtn.addEventListener('click', (e) => {
+    e.stopPropagation(); // Prevents triggering the parent upload area click
+    fileInput.click();   // Opens the file picker exactly once
+});
 
         // Drag and drop functionality
         uploadArea.addEventListener('dragover', (e) => {
