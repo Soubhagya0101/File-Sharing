@@ -458,45 +458,31 @@
             <p>Secure File Storage System</p>
             <div class="user-info" id="user-info">
                 <span id="user-display"></span>
-                <button class="logout-btn" onclick="signOut()">Logout</button>
+                <button class="logout-btn" id="logout-btn">Logout</button>
             </div>
         </div>
 
-        <!-- Replace your auth-section div with this: -->
-<div class="auth-section" id="auth-section">
-    <h2 style="margin-bottom: 30px; color: #1f2937;">Sign in to access your files</h2>
-    <div class="auth-buttons">
-        <button class="auth-btn google" id="google-btn">
-            <span>🔍</span>
-            Sign in with Google
-        </button>
-        <button class="auth-btn anonymous" id="anonymous-btn">
-            <span>👤</span>
-            Continue as Guest
-        </button>
-        <button class="auth-btn email" id="email-btn">
-            <span>📧</span>
-            Sign in with Email
-        </button>
-    </div>
-    <p style="margin-top: 20px; color: #6b7280; font-size: 0.9em;">
-        Your files are private and secure. Guest users can access files temporarily.
-    </p>
-</div>
+        <div class="auth-section" id="auth-section">
+            <h2 style="margin-bottom: 30px; color: #1f2937;">Sign in to access your files</h2>
+            <div class="auth-buttons">
+                <button class="auth-btn google" id="google-btn">
+                    <span>🔍</span>
+                    Sign in with Google
+                </button>
+                <button class="auth-btn anonymous" id="anonymous-btn">
+                    <span>👤</span>
+                    Continue as Guest
+                </button>
+                <button class="auth-btn email" id="email-btn">
+                    <span>📧</span>
+                    Sign in with Email
+                </button>
+            </div>
+            <p style="margin-top: 20px; color: #6b7280; font-size: 0.9em;">
+                Your files are private and secure. Guest users can access files temporarily.
+            </p>
+        </div>
 
-<!-- Also update the logout button: -->
-<div class="user-info" id="user-info">
-    <span id="user-display"></span>
-    <button class="logout-btn" id="logout-btn">Logout</button>
-</div>
-
-<!-- And update the refresh button: -->
-<div class="section-title">
-    📂 Your Files
-    <button class="refresh-btn" id="refresh-btn">Refresh</button>
-</div>
-
-        
         <!-- Main Content -->
         <div class="content" id="main-content">
             <div class="connection-status" id="connection-status">
@@ -513,7 +499,7 @@
                     <div class="upload-icon">📁</div>
                     <div class="upload-text">Drop files here or click to browse</div>
                     <div class="upload-subtext">Max file size: 50MB • All file types supported</div>
-                    <button class="btn" onclick="document.getElementById('file-input').click()">
+                    <button class="btn" id="choose-files-btn">
                         Choose Files
                     </button>
                 </div>
@@ -525,7 +511,7 @@
             <div class="files-section">
                 <div class="section-title">
                     📂 Your Files
-                    <button class="refresh-btn" onclick="loadFiles()">Refresh</button>
+                    <button class="refresh-btn" id="refresh-btn">Refresh</button>
                 </div>
                 <div class="files-grid" id="files-container">
                     <div class="empty-state">
@@ -576,13 +562,15 @@
         const statusContainer = document.getElementById('status-container');
         const filesContainer = document.getElementById('files-container');
         const connectionStatus = document.getElementById('connection-status');
+        const googleBtn = document.getElementById('google-btn');
+        const anonymousBtn = document.getElementById('anonymous-btn');
+        const emailBtn = document.getElementById('email-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const refreshBtn = document.getElementById('refresh-btn');
+        const chooseFilesBtn = document.getElementById('choose-files-btn');
 
         // Authentication functions
-         console.log('Functions attached to window:', {
-        signInWithGoogle: typeof window.signInWithGoogle,
-        signInAnonymously: typeof window.signInAnonymously,
-        signInWithEmail: typeof window.signInWithEmail
-        window.signInWithGoogle = async () => {
+        const signInWithGoogle = async () => {
             try {
                 const provider = new GoogleAuthProvider();
                 const result = await signInWithPopup(auth, provider);
@@ -593,7 +581,7 @@
             }
         };
 
-        window.signInAnonymously = async () => {
+        const signInAnonymouslyHandler = async () => {
             try {
                 const result = await signInAnonymously(auth);
                 console.log('Anonymous sign-in successful');
@@ -603,7 +591,7 @@
             }
         };
 
-        window.signInWithEmail = async () => {
+        const signInWithEmail = async () => {
             const email = prompt('Enter your email:');
             if (!email) return;
             
@@ -633,7 +621,7 @@
             }
         };
 
-        window.signOut = async () => {
+        const signOut = async () => {
             try {
                 await firebaseSignOut(auth);
                 console.log('User signed out successfully');
@@ -861,7 +849,7 @@
             }
         };
 
-        window.downloadFile = async (fullPath, fileName) => {
+        const downloadFile = async (fullPath, fileName) => {
             if (!currentUser || !isConnected) {
                 showStatus('Not connected to Firebase!', 'error');
                 return;
@@ -898,7 +886,7 @@
             }
         };
 
-        window.deleteFile = async (fullPath, fileName) => {
+        const deleteFile = async (fullPath, fileName) => {
             if (!currentUser || !isConnected) {
                 showStatus('Not connected to Firebase!', 'error');
                 return;
@@ -922,7 +910,7 @@
                     loadFiles();
                 }, 2000);
 
-            }} catch (error) {
+            } catch (error) {
                 console.error('Delete failed:', error);
                 showStatus(`Delete failed: ${error.message}`, 'error');
                 setTimeout(clearStatus, 5000);
@@ -953,25 +941,29 @@
             }
         };
 
-        // Event listeners
+        // Event Listeners
+        googleBtn.addEventListener('click', signInWithGoogle);
+        anonymousBtn.addEventListener('click', signInAnonymouslyHandler);
+        emailBtn.addEventListener('click', signInWithEmail);
+        logoutBtn.addEventListener('click', signOut);
+        refreshBtn.addEventListener('click', loadFiles);
+        chooseFilesBtn.addEventListener('click', () => fileInput.click());
+
+        // File input change handler
         fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                uploadFiles(Array.from(e.target.files));
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                uploadFiles(files);
             }
+            e.target.value = ''; // Clear input
         });
 
-        uploadArea.addEventListener('click', () => {
-            if (!isConnected) {
-                showStatus('Not connected to Firebase. Please check your connection.', 'error');
-                return;
-            }
-            fileInput.click();
-        });
-
+        // Drag and drop handlers
         uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
-            if (!isConnected) return;
-            uploadArea.classList.add('dragover');
+            if (!uploadArea.classList.contains('disabled')) {
+                uploadArea.classList.add('dragover');
+            }
         });
 
         uploadArea.addEventListener('dragleave', (e) => {
@@ -983,8 +975,8 @@
             e.preventDefault();
             uploadArea.classList.remove('dragover');
             
-            if (!isConnected) {
-                showStatus('Not connected to Firebase. Please check your connection.', 'error');
+            if (uploadArea.classList.contains('disabled')) {
+                showStatus('Please sign in first to upload files', 'error');
                 return;
             }
             
@@ -994,13 +986,21 @@
             }
         });
 
-        // Prevent default drag behaviors
-        document.addEventListener('dragover', (e) => e.preventDefault());
-        document.addEventListener('drop', (e) => e.preventDefault());
+        uploadArea.addEventListener('click', () => {
+            if (!uploadArea.classList.contains('disabled')) {
+                fileInput.click();
+            }
+        });
 
-        // Initialize on page load
+        // Make functions globally available for onclick handlers
+        window.downloadFile = downloadFile;
+        window.deleteFile = deleteFile;
+
+        // Initialize app
         console.log('SKVault initialized');
         
+        // Set initial connection status
+        updateConnectionStatus('Initializing...', false);
     </script>
 </body>
 </html>
