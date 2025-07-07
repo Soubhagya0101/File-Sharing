@@ -707,11 +707,10 @@
         const cancelBtn = document.getElementById('cancel-btn');
 
         // Authentication functions
-        const signInWithGoogle = async () => {
-            if (isAuthInProgress) return;
-            isAuthInProgress = true;
-            
-          try {
+       const signInWithGoogle = async () => {
+    if (isAuthInProgress) return;
+    isAuthInProgress = true;
+
     googleBtn.disabled = true;
     googleBtn.innerHTML = '<span class="loading"></span>Signing in...';
 
@@ -719,64 +718,65 @@
     provider.addScope('email');
     provider.addScope('profile');
 
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
+    try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
 
-    console.log('Google sign-in successful:', user);
+        if (!user) throw new Error('Google login failed');
 
-    if (user.emailVerified || user.providerData[0]?.providerId === 'google.com') {
+        console.log('[Google] Logged in:', user.email);
         showStatus(`Welcome, ${user.displayName || user.email}!`, 'success');
-        // You can call your `loadFiles()` or show app section here
-    } else {
-        showStatus('Email not verified. Please verify before proceeding.', 'error');
-        await auth.signOut();
+
+        // Don't sign out if Google login — it's verified
+    } catch (error) {
+        console.error('[Google] Error:', error);
+        let msg = 'Google sign-in failed';
+
+        if (error.code === 'auth/popup-closed-by-user') {
+            msg = 'You closed the sign-in popup. Try again.';
+        } else if (error.code === 'auth/popup-blocked') {
+            msg = 'Popup blocked. Please allow popups for this site.';
+        }
+
+        showStatus(msg, 'error');
+    } finally {
+        isAuthInProgress = false;
+        googleBtn.disabled = false;
+        googleBtn.innerHTML = '<span>🔍</span>Sign in with Google';
     }
+};
 
-} catch (error) {
-    console.error('Google sign-in error:', error);
-    let errorMessage = 'Google sign-in failed';
 
-    if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'Sign-in popup was closed. Please try again.';
-    } else if (error.code === 'auth/popup-blocked') {
-        errorMessage = 'Popup blocked. Please allow popups for this site.';
-    } else if (error.code === 'auth/network-request-failed') {
-        errorMessage = 'Network error. Please check your connection.';
-    } else if (error.message) {
-        errorMessage = `Google sign-in failed: ${error.message}`;
+       const signInAnonymouslyHandler = async () => {
+    if (isAuthInProgress) return;
+    isAuthInProgress = true;
+
+    try {
+        anonymousBtn.disabled = true;
+        anonymousBtn.innerHTML = '<span class="loading"></span>Signing in...';
+
+        const result = await signInAnonymously(auth);
+        const user = result.user;
+
+        console.log('[Guest Login] Signed in anonymously:', user?.uid);
+
+        if (!user) {
+            throw new Error('No user returned after anonymous login');
+        }
+
+        // Optional: manually trigger file load or wait for `onAuthStateChanged`
+        showStatus('Signed in as guest!', 'success');
+
+    } catch (error) {
+        console.error('Anonymous sign-in error:', error);
+        showStatus('Guest login failed: ' + error.message, 'error');
+    } finally {
+        isAuthInProgress = false;
+        anonymousBtn.disabled = false;
+        anonymousBtn.innerHTML = '<span>👤</span>Continue as Guest';
     }
+};
 
-    showStatus(errorMessage, 'error');
-
-} 
- finally {
-                isAuthInProgress = false;
-                googleBtn.disabled = false;
-                googleBtn.innerHTML = '<span>🔍</span>Sign in with Google';
-            }
-        };
-
-        const signInAnonymouslyHandler = async () => {
-            if (isAuthInProgress) return;
-            isAuthInProgress = true;
-            
-            try {
-                anonymousBtn.disabled = true;
-                anonymousBtn.innerHTML = '<span class="loading"></span>Signing in...';
-                
-                const result = await signInAnonymously(auth);
-                console.log('Anonymous sign-in successful');
-                showStatus('Signed in as guest!', 'success');
-                
-            } catch (error) {
-                console.error('Anonymous sign-in error:', error);
-                showStatus('Anonymous sign-in failed: ' + error.message, 'error');
-            } finally {
-                isAuthInProgress = false;
-                anonymousBtn.disabled = false;
-                anonymousBtn.innerHTML = '<span>👤</span>Continue as Guest';
-            }
-        };
 
         const showEmailForm = () => {
             emailForm.classList.add('show');
@@ -916,33 +916,35 @@
         onAuthStateChanged(auth, (user) => {
     currentUser = user;
 
-    if (user) {
-        if (user.emailVerified || user.providerData[0]?.providerId === 'google.com') {
-            // ✅ Verified email or Google login
-            authSection.style.display = 'none';
-            mainContent.classList.add('show');
-            userInfo.style.display = 'block';
-
-            const displayName = user.displayName || user.email || 'Anonymous User';
-            userDisplay.textContent = displayName;
-
-            console.log('User signed in:', displayName);
-            testConnection();
-            setTimeout(loadFiles, 1000);
-
-        } else {
-            // 🚫 Not verified
-            showStatus('Please verify your email before accessing SKVault.', 'error');
-            auth.signOut(); // auto sign out unverified user
-        }
-
-    } else {
-        // 🔓 Signed out
+    if (!user) {
+        // Signed out
         authSection.style.display = 'block';
         mainContent.classList.remove('show');
         userInfo.style.display = 'none';
         hideEmailForm();
-        console.log('User signed out');
+        console.log('[Auth] No user signed in');
+        return;
+    }
+
+    const provider = user.providerData[0]?.providerId || 'anonymous';
+    const isGoogle = provider === 'google.com';
+    const isGuest = provider === 'anonymous';
+
+    console.log(`[Auth] Signed in: ${user.uid}, Provider: ${provider}`);
+
+    const displayName = user.displayName || user.email || 'Anonymous User';
+    userDisplay.textContent = displayName;
+
+    if (user.emailVerified || isGoogle || isGuest) {
+        authSection.style.display = 'none';
+        mainContent.classList.add('show');
+        userInfo.style.display = 'block';
+
+        testConnection();
+        setTimeout(loadFiles, 1000);
+    } else {
+        showStatus('Please verify your email before accessing SKVault.', 'error');
+        auth.signOut(); // only for unverified emails
     }
 });
 
@@ -1172,7 +1174,7 @@
         };
 
         // Event listeners
-        googleBtn.addEventListener('click', signInWithGoogle);
+       googleBtn.addEventListener('click', signInWithGoogle);
         anonymousBtn.addEventListener('click', signInAnonymouslyHandler);
         emailBtn.addEventListener('click', showEmailForm);
         logoutBtn.addEventListener('click', signOut);
