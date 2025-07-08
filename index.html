@@ -661,7 +661,8 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
+        import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
         import {
             getAuth,
             signInWithPopup,
@@ -682,18 +683,19 @@
             deleteObject,
             getMetadata
         } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js';
+        const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
         // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyB2t5nCa-fJGKbB3Djkfmz9HgwXmMUAsV0",
-            authDomain: "skvault-74d9c.firebaseapp.com",
-            projectId: "skvault-74d9c",
-            storageBucket: "skvault-74d9c.firebasestorage.app",
-            messagingSenderId: "50827927412",
-            appId: "1:50827927412:web:144ced35567480b184d621",
-            measurementId: "G-BPGKT6YHFM"
-        };
-
+       const firebaseConfig = {
+  apiKey: "AIzaSyB2t5nCa-fJGKbB3Djkfmz9HgwXmMUAsV0",
+  authDomain: "skvault-74d9c.firebaseapp.com",
+  projectId: "skvault-74d9c",
+  storageBucket: "skvault-74d9c.firebasestorage.app",
+  messagingSenderId: "50827927412",
+  appId: "1:50827927412:web:144ced35567480b184d621",
+  measurementId: "G-BPGKT6YHFM"
+};
         // Configuration
         const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
         const MAX_FILE_SIZE_TEXT = "50MB";
