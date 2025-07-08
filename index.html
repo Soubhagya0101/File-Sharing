@@ -744,9 +744,10 @@
         googleBtn.innerHTML = '<span>🔍</span>Sign in with Google';
     }
 };
+let shareId = null; // will store the user's custom or generated Share ID
 
 
-     const signInAnonymouslyHandler = async () => {
+    const signInAnonymouslyHandler = async () => {
   if (isAuthInProgress) return;
   isAuthInProgress = true;
 
