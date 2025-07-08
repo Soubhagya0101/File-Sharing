@@ -747,39 +747,41 @@
 let shareId = null; // will store the user's custom or generated Share ID
 
 
-    const signInAnonymouslyHandler = async () => {
-  if (isAuthInProgress) return;
-  isAuthInProgress = true;
+ const signInAnonymouslyHandler = async () => {
+        if (isAuthInProgress) return;
+        isAuthInProgress = true;
 
-  try {
-    anonymousBtn.disabled = true;
-    anonymousBtn.innerHTML = '<span class="loading"></span>Signing in...';
+        try {
+            anonymousBtn.disabled = true;
+            anonymousBtn.innerHTML = '<span class="loading"></span>Signing in...';
 
-    const result = await signInAnonymously(auth);
-    const user = result.user;
+            const result = await signInAnonymously(auth);
+            const user = result.user;
 
-    if (!user) throw new Error('Anonymous login failed');
+            if (!user) throw new Error('Anonymous login failed');
 
-    // Ask user for a Share ID
-    shareId = prompt("Enter a Share ID so you can access these files on another device, or leave blank to auto-generate:");
-    if (!shareId) {
-      shareId = 'anon-' + Math.random().toString(36).substring(2, 8);
-      showStatus(`Generated Share ID: ${shareId}`, 'info');
-    }
+            // Ask user for a Share ID
+            shareId = prompt("Enter a Share ID to access existing files, or leave blank to create a new one:");
+            if (!shareId || shareId.trim() === '') {
+                shareId = 'guest-' + Math.random().toString(36).substring(2, 10);
+                showStatus(`New Share ID created: ${shareId}`, 'info');
+            } else {
+                shareId = shareId.trim();
+                showStatus(`Using Share ID: ${shareId}`, 'info');
+            }
 
-    localStorage.setItem('shareId', shareId); // optional persistence
-    console.log('[Guest Login]', user.uid, 'Share ID:', shareId);
-    showStatus(`Signed in as guest! Share ID: ${shareId}`, 'success');
-  } catch (error) {
-    console.error('Anonymous sign-in error:', error);
-    showStatus('Guest login failed: ' + error.message, 'error');
-  } finally {
-    isAuthInProgress = false;
-    anonymousBtn.disabled = false;
-    anonymousBtn.innerHTML = '<span>👤</span>Continue as Guest';
-  }
-};
-
+            localStorage.setItem('guest-share-id', shareId);
+            console.log('[Guest Login]', user.uid, 'Share ID:', shareId);
+            showStatus(`Signed in as guest! Share ID: ${shareId} - Save this to access your files on other devices!`, 'success');
+        } catch (error) {
+            console.error('Anonymous sign-in error:', error);
+            showStatus('Guest login failed: ' + error.message, 'error');
+        } finally {
+            isAuthInProgress = false;
+            anonymousBtn.disabled = false;
+            anonymousBtn.innerHTML = '<span>👤</span>Continue as Guest';
+        }
+    };
         const shareId = promptForShareId();
 console.log('[Guest Login] Using Share ID:', shareId);
 
