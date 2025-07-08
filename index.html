@@ -135,6 +135,39 @@
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
         }
+        /* Add this CSS to your existing styles */
+.password-group {
+    position: relative;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2em;
+    color: #6b7280;
+    padding: 5px;
+    border-radius: 4px;
+    transition: color 0.2s ease;
+}
+
+.password-toggle:hover {
+    color: #4f46e5;
+}
+
+.password-toggle:focus {
+    outline: none;
+    color: #4f46e5;
+}
+
+.form-group input[type="password"], 
+.form-group input[type="text"] {
+    padding-right: 45px; /* Make space for the eye icon */
+}
 
         .share-input {
             width: 100%;
@@ -605,9 +638,14 @@
                     <input type="email" id="email-input" placeholder="Enter your email">
                 </div>
                 <div class="form-group">
-                    <label for="password-input">Password</label>
-                    <input type="password" id="password-input" placeholder="Enter your password">
-                </div>
+    <label for="password-input">Password</label>
+    <div class="password-group">
+        <input type="password" id="password-input" placeholder="Enter your password">
+        <button type="button" class="password-toggle" id="password-toggle">
+            👁️
+        </button>
+    </div>
+</div>
                 <div class="form-buttons">
                     <button class="primary" id="signin-btn">Sign In</button>
                     <button class="primary" id="signup-btn">Sign Up</button>
@@ -858,12 +896,44 @@
             emailInput.focus();
         };
 
-        const hideEmailForm = () => {
-            emailForm.classList.remove('show');
-            emailBtn.style.display = 'flex';
-            emailInput.value = '';
-            passwordInput.value = '';
-        };
+       // Add this JavaScript code in your script section
+
+// Password toggle functionality
+const passwordToggle = document.getElementById('password-toggle');
+let isPasswordVisible = false;
+
+const togglePasswordVisibility = () => {
+    const passwordInput = document.getElementById('password-input');
+    
+    if (isPasswordVisible) {
+        passwordInput.type = 'password';
+        passwordToggle.textContent = '👁️';
+        passwordToggle.title = 'Show password';
+        isPasswordVisible = false;
+    } else {
+        passwordInput.type = 'text';
+        passwordToggle.textContent = '🙈';
+        passwordToggle.title = 'Hide password';
+        isPasswordVisible = true;
+    }
+};
+
+// Add event listener for password toggle
+passwordToggle.addEventListener('click', togglePasswordVisibility);
+
+// Reset password visibility when form is hidden
+const hideEmailForm = () => {
+    emailForm.classList.remove('show');
+    emailBtn.style.display = 'flex';
+    emailInput.value = '';
+    passwordInput.value = '';
+    
+    // Reset password visibility
+    passwordInput.type = 'password';
+    passwordToggle.textContent = '👁️';
+    passwordToggle.title = 'Show password';
+    isPasswordVisible = false;
+};
 
         const signInWithEmail = async () => {
             if (isAuthInProgress) return;
@@ -917,62 +987,73 @@
         };
 
         const signUpWithEmail = async () => {
-            if (isAuthInProgress) return;
-            
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
-            
-            if (!email || !password) {
-                showStatus('Please enter both email and password', 'error');
-                return;
-            }
-            
-            if (!email.includes('@') || !email.includes('.')) {
-                showStatus('Please enter a valid email address', 'error');
-                return;
-            }
-            
-            if (password.length < 6) {
-                showStatus('Password must be at least 6 characters long', 'error');
-                return;
-            }
-            
-            isAuthInProgress = true;
-            
-          try {
-                signupBtn.disabled = true;
-                signupBtn.innerHTML = '<span class="loading"></span>Creating account...';
-                
-                const result = await createUserWithEmailAndPassword(auth, email, password);
-                console.log('Email sign-up successful:', result.user.email);
-                
-                // Send email verification
-                await sendEmailVerification(result.user);
-                showStatus('Account created! Please check your email to verify your account.', 'success');
-                hideEmailForm();
-                
-            } catch (error) {
-                console.error('Email sign-up error:', error);
-                let errorMessage = 'Account creation failed';
-                
-                if (error.code === 'auth/email-already-in-use') {
-                    errorMessage = 'An account with this email already exists. Try signing in instead.';
-                } else if (error.code === 'auth/invalid-email') {
-                    errorMessage = 'Invalid email address format.';
-                } else if (error.code === 'auth/weak-password') {
-                    errorMessage = 'Password is too weak. Please use at least 6 characters.';
-                } else if (error.message) {
-                    errorMessage = `Account creation failed: ${error.message}`;
-                }
+    if (isAuthInProgress) return;
+    
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    
+    if (!email || !password) {
+        showStatus('Please enter both email and password', 'error');
+        return;
+    }
+    
+    if (!email.includes('@') || !email.includes('.')) {
+        showStatus('Please enter a valid email address', 'error');
+        return;
+    }
+    
+    if (password.length < 6) {
+        showStatus('Password must be at least 6 characters long', 'error');
+        return;
+    }
+    
+    isAuthInProgress = true;
+    
+    try {
+        signupBtn.disabled = true;
+        signupBtn.innerHTML = '<span class="loading"></span>Creating account...';
+        
+        const result = await createUserWithEmailAndPassword(auth, email, password);
+        console.log('Email sign-up successful:', result.user.email);
+        
+        // Send email verification with better error handling
+        try {
+            await sendEmailVerification(result.user, {
+                url: window.location.origin, // This helps with redirect after verification
+                handleCodeInApp: false
+            });
+            showStatus(`Account created successfully! Please check your email (${email}) for a verification link. Check your spam folder if you don't see it.`, 'success');
+            console.log('Verification email sent to:', email);
+        } catch (verificationError) {
+            console.error('Email verification error:', verificationError);
+            showStatus(`Account created but verification email failed to send: ${verificationError.message}. You can still sign in.`, 'error');
+        }
+        
+        hideEmailForm();
+        
+    } catch (error) {
+        console.error('Email sign-up error:', error);
+        let errorMessage = 'Account creation failed';
+        
+        if (error.code === 'auth/email-already-in-use') {
+            errorMessage = 'An account with this email already exists. Try signing in instead.';
+        } else if (error.code === 'auth/invalid-email') {
+            errorMessage = 'Invalid email address format.';
+        } else if (error.code === 'auth/weak-password') {
+            errorMessage = 'Password is too weak. Please use at least 6 characters.';
+        } else if (error.code === 'auth/network-request-failed') {
+            errorMessage = 'Network error. Please check your internet connection and try again.';
+        } else if (error.message) {
+            errorMessage = `Account creation failed: ${error.message}`;
+        }
 
-                showStatus(errorMessage, 'error');
-            } finally {
-                isAuthInProgress = false;
-                signupBtn.disabled = false;
-                signupBtn.innerHTML = 'Sign Up';
-            }
-        };
-
+        showStatus(errorMessage, 'error');
+    } finally {
+        isAuthInProgress = false;
+        signupBtn.disabled = false;
+        signupBtn.innerHTML = 'Sign Up';
+    }
+};
         const signOut = async () => {
             try {
                 await firebaseSignOut(auth);
