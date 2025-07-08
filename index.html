@@ -553,10 +553,6 @@
         <div class="auth-section" id="auth-section">
             <h2 style="margin-bottom: 30px; color: #1f2937;">Sign in to access your files</h2>
             
-            <div class="warning-info">
-                <strong>⚠️ Important:</strong> Anonymous users can only access files on the same device/browser. For cross-device access, use Google or Email login.
-            </div>
-            
             <div class="auth-buttons">
                 <button class="auth-btn google" id="google-btn">
                     <span>🔍</span>
@@ -570,6 +566,9 @@
                     <span>👤</span>
                     Continue as Guest
                 </button>
+                <button id="join-share-btn">Join by Share ID</button>
+<input id="share-id-input" placeholder="Enter Share ID">
+
             </div>
 
             <div class="email-form" id="email-form">
@@ -747,36 +746,41 @@
 };
 
 
-       const signInAnonymouslyHandler = async () => {
-    if (isAuthInProgress) return;
-    isAuthInProgress = true;
+     const signInAnonymouslyHandler = async () => {
+  if (isAuthInProgress) return;
+  isAuthInProgress = true;
 
-    try {
-        anonymousBtn.disabled = true;
-        anonymousBtn.innerHTML = '<span class="loading"></span>Signing in...';
+  try {
+    anonymousBtn.disabled = true;
+    anonymousBtn.innerHTML = '<span class="loading"></span>Signing in...';
 
-        const result = await signInAnonymously(auth);
-        const user = result.user;
+    const result = await signInAnonymously(auth);
+    const user = result.user;
 
-        console.log('[Guest Login] Signed in anonymously:', user?.uid);
+    if (!user) throw new Error('Anonymous login failed');
 
-        if (!user) {
-            throw new Error('No user returned after anonymous login');
-        }
-
-        // Optional: manually trigger file load or wait for `onAuthStateChanged`
-        showStatus('Signed in as guest!', 'success');
-
-    } catch (error) {
-        console.error('Anonymous sign-in error:', error);
-        showStatus('Guest login failed: ' + error.message, 'error');
-    } finally {
-        isAuthInProgress = false;
-        anonymousBtn.disabled = false;
-        anonymousBtn.innerHTML = '<span>👤</span>Continue as Guest';
+    // Ask user for a Share ID
+    shareId = prompt("Enter a Share ID so you can access these files on another device, or leave blank to auto-generate:");
+    if (!shareId) {
+      shareId = 'anon-' + Math.random().toString(36).substring(2, 8);
+      showStatus(`Generated Share ID: ${shareId}`, 'info');
     }
+
+    localStorage.setItem('shareId', shareId); // optional persistence
+    console.log('[Guest Login]', user.uid, 'Share ID:', shareId);
+    showStatus(`Signed in as guest! Share ID: ${shareId}`, 'success');
+  } catch (error) {
+    console.error('Anonymous sign-in error:', error);
+    showStatus('Guest login failed: ' + error.message, 'error');
+  } finally {
+    isAuthInProgress = false;
+    anonymousBtn.disabled = false;
+    anonymousBtn.innerHTML = '<span>👤</span>Continue as Guest';
+  }
 };
 
+        const shareId = promptForShareId();
+console.log('[Guest Login] Using Share ID:', shareId);
 
         const showEmailForm = () => {
             emailForm.classList.add('show');
@@ -987,7 +991,21 @@
     connectionStatus.className = 'connection-status';
 
     try {
-        const userFolder = `users/${currentUser.uid}/`;
+       let userFolder;
+
+if (currentUser && currentUser.uid) {
+    userFolder = `users/${currentUser.uid}/`;
+} else {
+    const shareId = localStorage.getItem("guest-share-id");
+    if (!shareId) {
+        showStatus("No Share ID found for guest. Please refresh and enter one.", "error");
+        throw new Error("Missing guest Share ID");
+    }
+    userFolder = `shared_guests/${shareId}/`;
+}
+
+  ? `shares/${shareId}/`
+  : `users/${currentUser.uid}/`;
         const listRef = ref(storage, userFolder);
 
         const result = await Promise.race([
@@ -1017,6 +1035,7 @@
     }
 };
 
+let shareId = null; // will store the user's custom or generated Share ID
 
 
         const uploadFile = async (file) => {
@@ -1069,21 +1088,16 @@
                         <div>Loading files...</div>
                     </div>
                 `;
+if (currentUser.isAnonymous) {
+  if (!shareId) {
+    showStatus("Missing Share ID. Please sign in again.", 'error');
+    return;
+  }
+}
+const userFolder = currentUser.isAnonymous
+  ? `shares/${shareId}/`
+  : `users/${currentUser.uid}/`;
 
-                const userFolder = `users/${currentUser.uid}/`;
-                const listRef = ref(storage, userFolder);
-                const listResult = await listAll(listRef);
-
-                if (listResult.items.length === 0) {
-                    filesContainer.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-icon">📭</div>
-                            <div>No files uploaded yet</div>
-                            <div style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
-                                Upload your first file to get started!
-                            </div>
-                        </div>
-                    `;
                     return;
                 }
 
