@@ -113,6 +113,120 @@
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(107, 114, 128, 0.4);
         }
+        /* Add this CSS to your existing styles */
+.share-id-display {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    border-radius: 12px;
+    padding: 15px 20px;
+    margin: 20px 0;
+    font-weight: 600;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    display: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.share-id-display.show {
+    display: block;
+    animation: slideIn 0.3s ease-out;
+}
+
+.share-id-display::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+.share-id-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.share-id-text {
+    font-size: 1.1em;
+}
+
+.share-id-value {
+    font-family: 'Courier New', monospace;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 8px 15px;
+    border-radius: 8px;
+    font-size: 1.2em;
+    font-weight: 700;
+    letter-spacing: 1px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.copy-share-btn {
+    background: rgba(255, 255, 255, 0.9);
+    color: #d97706;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 8px;
+    font-size: 0.9em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: 10px;
+}
+
+.copy-share-btn:hover {
+    background: white;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.copy-share-btn:active {
+    transform: translateY(0);
+}
+
+.copy-share-btn.copied {
+    background: #10b981;
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .share-id-content {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .share-id-value {
+        font-size: 1em;
+        word-break: break-all;
+    }
+}
 
         .auth-btn.email {
             background: #10b981;
@@ -663,6 +777,23 @@
             <div class="connection-status" id="connection-status">
                 <span class="loading"></span>
                 Connecting to Firebase...
+                <!-- Add this HTML right after the connection-status div -->
+<div class="share-id-display" id="share-id-display">
+    <div class="share-id-content">
+        <div class="share-id-text">
+            🔗 Your Share ID:
+        </div>
+        <div class="share-id-value" id="share-id-value">
+            <!-- Share ID will be populated here -->
+        </div>
+        <button class="copy-share-btn" id="copy-share-btn">
+            📋 Copy
+        </button>
+    </div>
+    <div style="margin-top: 10px; font-size: 0.9em; opacity: 0.9;">
+        Save this ID to access your files from other devices!
+    </div>
+</div>
             </div>
 
             <div class="quota-info">
@@ -698,7 +829,7 @@
         </div>
     </div>
 
-    <script type="module">
+  <script type="module">
         // Firebase imports - Using the latest v9 modular SDK
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics.js";
@@ -778,6 +909,11 @@
         const logoutBtn = document.getElementById('logout-btn');
         const refreshBtn = document.getElementById('refresh-btn');
         
+        // Add these DOM elements for share ID display
+        const shareIdDisplay = document.getElementById('share-id-display');
+        const shareIdValue = document.getElementById('share-id-value');
+        const copyShareBtn = document.getElementById('copy-share-btn');
+        
         // Email form elements
         const emailForm = document.getElementById('email-form');
         const emailInput = document.getElementById('email-input');
@@ -842,10 +978,12 @@
 
                 // Generate a new share ID for guest users
                 shareId = 'guest-' + Math.random().toString(36).substring(2, 10);
-                showStatus(`New Share ID created: ${shareId}`, 'info');
+                
+                // Show persistent share ID display
+                showShareIdDisplay(shareId);
 
                 console.log('[Guest Login]', user.uid, 'Share ID:', shareId);
-                showStatus(`Signed in as guest! Share ID: ${shareId} - Save this to access your files on other devices!`, 'success');
+                showStatus(`Signed in as guest! Your Share ID is displayed above.`, 'success');
             } catch (error) {
                 console.error('Anonymous sign-in error:', error);
                 showStatus('Guest login failed: ' + error.message, 'error');
@@ -876,7 +1014,11 @@
                 if (!user) throw new Error('Anonymous login failed');
 
                 shareId = inputShareId;
-                showStatus(`Joined with Share ID: ${shareId}`, 'success');
+                
+                // Show persistent share ID display
+                showShareIdDisplay(shareId);
+                
+                showStatus(`Successfully joined with Share ID: ${shareId}`, 'success');
 
                 console.log('[Share Join]', user.uid, 'Share ID:', shareId);
             } catch (error) {
@@ -1054,17 +1196,67 @@ const hideEmailForm = () => {
         signupBtn.innerHTML = 'Sign Up';
     }
 };
+
         const signOut = async () => {
             try {
                 await firebaseSignOut(auth);
                 console.log('User signed out');
                 showStatus('Signed out successfully', 'success');
                 shareId = null;
+                hideShareIdDisplay();
             } catch (error) {
                 console.error('Sign out error:', error);
                 showStatus('Sign out failed: ' + error.message, 'error');
             }
         };
+
+        // New function to show/hide share ID display
+        const showShareIdDisplay = (id) => {
+            shareIdValue.textContent = id;
+            shareIdDisplay.classList.add('show');
+        };
+
+        const hideShareIdDisplay = () => {
+            shareIdDisplay.classList.remove('show');
+        };
+
+        // Copy share ID functionality
+        const copyShareId = async () => {
+            try {
+                await navigator.clipboard.writeText(shareId);
+                copyShareBtn.textContent = '✅ Copied!';
+                copyShareBtn.classList.add('copied');
+                
+                setTimeout(() => {
+                    copyShareBtn.textContent = '📋 Copy';
+                    copyShareBtn.classList.remove('copied');
+                }, 2000);
+                
+                showStatus('Share ID copied to clipboard!', 'success');
+            } catch (error) {
+                console.error('Copy failed:', error);
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = shareId;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                copyShareBtn.textContent = '✅ Copied!';
+                copyShareBtn.classList.add('copied');
+                
+                setTimeout(() => {
+                    copyShareBtn.textContent = '📋 Copy';
+                    copyShareBtn.classList.remove('copied');
+                }, 2000);
+                
+                showStatus('Share ID copied to clipboard!', 'success');
+            }
+        };
+
+        // Add event listener for copy button
+        copyShareBtn.addEventListener('click', copyShareId);
 
         // Event listeners for authentication
         googleBtn.addEventListener('click', signInWithGoogle);
@@ -1103,7 +1295,7 @@ const hideEmailForm = () => {
         
         logoutBtn.addEventListener('click', signOut);
 
-        // Auth state observer
+        // Auth state observer - Updated version
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
             
@@ -1116,8 +1308,12 @@ const hideEmailForm = () => {
                 const displayName = user.displayName || user.email || (user.isAnonymous ? 'Guest User' : 'User');
                 userDisplay.textContent = displayName;
                 
+                // Show share ID for anonymous users
                 if (user.isAnonymous && shareId) {
+                    showShareIdDisplay(shareId);
                     userDisplay.textContent += ` (Share ID: ${shareId})`;
+                } else {
+                    hideShareIdDisplay();
                 }
                 
                 isConnected = true;
@@ -1129,9 +1325,11 @@ const hideEmailForm = () => {
                 authSection.style.display = 'block';
                 mainContent.classList.remove('show');
                 userInfo.style.display = 'none';
+                hideShareIdDisplay();
                 isConnected = false;
                 updateConnectionStatus();
                 clearFiles();
+                shareId = null;
             }
         });
 
