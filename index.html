@@ -683,8 +683,7 @@ import { getAnalytics } from "firebase/analytics";
             deleteObject,
             getMetadata
         } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js';
-        const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+
 
         // Firebase configuration
        const firebaseConfig = {
@@ -702,6 +701,7 @@ const analytics = getAnalytics(app);
 
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
         const auth = getAuth(app);
         const storage = getStorage(app);
 
