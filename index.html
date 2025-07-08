@@ -887,64 +887,6 @@
                 } else if (error.code === 'auth/wrong-password') {
                     errorMessage = 'Incorrect password. Please try again.';
                 } else if (error.code === 'auth/invalid-email') {
-                    errorMessage = 'Invalid email address format.';
-                } else if (error.code === 'auth/too-many-requests') {
-                    errorMessage = 'Too many failed attempts. Please try again later.';
-                } else if (error.message) {
-                    errorMessage = `Sign-in failed: ${error.message}`;
-                }
-                
-                showStatus(errorMessage, 'error');
-            } finally {
-                isAuthInProgress = false;
-                signinBtn.disabled = false;
-                signinBtn.innerHTML = 'Sign In';
-            }
-        };
-
-        const signUpWithEmail = async () => {
-            if (isAuthInProgress) return;
-
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
-
-            if (!email || !password) {
-                showStatus('Please enter both email and password', 'error');
-                return;
-            }
-
-            if (!email.includes('@') || !email.includes('.')) {
-                showStatus('Please enter a valid email address', 'error');
-                return;
-            }
-
-            if (password.length < 6) {
-                showStatus('Password must be at least 6 characters long', 'error');
-                return;
-            }
-
-            isAuthInProgress = true;
-
-            try {
-                signupBtn.disabled = true;
-                signupBtn.innerHTML = '<span class="loading"></span>Creating account...';
-
-                const result = await createUserWithEmailAndPassword(auth, email, password);
-                const user = result.user;
-
-                await sendEmailVerification(user);
-                console.log('Verification email sent to:', user.email);
-
-                showStatus(`Account created! A verification email was sent to ${user.email}`, 'success');
-                hideEmailForm();
-
-            } catch (error) {
-                console.error('Account creation error:', error);
-                let errorMessage = 'Account creation failed';
-
-                if (error.code === 'auth/email-already-in-use') {
-                    errorMessage = 'An account with this email already exists. Try signing in instead.';
-                } else if (error.code === 'auth/invalid-email') {
                    errorMessage = 'Invalid email address format.';
                 } else if (error.code === 'auth/weak-password') {
                     errorMessage = 'Password is too weak. Please use at least 6 characters.';
@@ -1174,10 +1116,26 @@
             }, 5000);
         };
 
-        // Event listeners
-        googleBtn.addEventListener('click', signInWithGoogle);
-        anonymousBtn.addEventListener('click', signInAnonymouslyHandler);
-        emailBtn.addEventListener('click', showEmailForm);
+        // Event listeners with debugging
+        console.log('Setting up event listeners...');
+        
+        googleBtn.addEventListener('click', (e) => {
+            console.log('Google button clicked');
+            e.preventDefault();
+            signInWithGoogle();
+        });
+        
+        anonymousBtn.addEventListener('click', (e) => {
+            console.log('Anonymous button clicked');
+            e.preventDefault();
+            signInAnonymouslyHandler();
+        });
+        
+        emailBtn.addEventListener('click', (e) => {
+            console.log('Email button clicked');
+            e.preventDefault();
+            showEmailForm();
+        });
         
         joinShareBtn.addEventListener('click', () => {
             if (shareIdInput.classList.contains('show')) {
@@ -1299,8 +1257,23 @@
         window.downloadFile = downloadFile;
         window.deleteFile = deleteFile;
 
-        // Initialize
-        console.log('SKVault initialized');
+        // Initialize with better error handling
+        console.log('SKVault starting initialization...');
+        
+        // Add a startup message
+        connectionStatus.innerHTML = '<span class="loading"></span>Initializing Firebase...';
+        
+        // Test if Firebase is properly loaded
+        if (typeof initializeApp === 'undefined') {
+            console.error('Firebase modules not loaded properly');
+            connectionStatus.innerHTML = '❌ Firebase modules failed to load';
+            connectionStatus.className = 'connection-status error';
+        } else {
+            console.log('Firebase modules loaded successfully');
+            console.log('Available auth methods:', { signInWithPopup, signInAnonymously, signInWithEmailAndPassword });
+        }
+        
+        console.log('SKVault initialized - ready for authentication');
     </script>
 </body>
 </html>
