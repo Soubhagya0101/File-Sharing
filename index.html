@@ -661,8 +661,9 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
+        // Firebase imports - Using the latest v9 modular SDK
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics.js";
         import {
             getAuth,
             signInWithPopup,
@@ -684,26 +685,35 @@ import { getAnalytics } from "firebase/analytics";
             getMetadata
         } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js';
 
-
         // Firebase configuration
-       const firebaseConfig = {
-  apiKey: "AIzaSyB2t5nCa-fJGKbB3Djkfmz9HgwXmMUAsV0",
-  authDomain: "skvault-74d9c.firebaseapp.com",
-  projectId: "skvault-74d9c",
-  storageBucket: "skvault-74d9c.firebasestorage.app",
-  messagingSenderId: "50827927412",
-  appId: "1:50827927412:web:144ced35567480b184d621",
-  measurementId: "G-BPGKT6YHFM"
-};
+        const firebaseConfig = {
+            apiKey: "AIzaSyB2t5nCa-fJGKbB3Djkfmz9HgwXmMUAsV0",
+            authDomain: "skvault-74d9c.firebaseapp.com",
+            projectId: "skvault-74d9c",
+            storageBucket: "skvault-74d9c.firebasestorage.app",
+            messagingSenderId: "50827927412",
+            appId: "1:50827927412:web:144ced35567480b184d621",
+            measurementId: "G-BPGKT6YHFM"
+        };
+
         // Configuration
         const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
         const MAX_FILE_SIZE_TEXT = "50MB";
 
         // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
-        const auth = getAuth(app);
-        const storage = getStorage(app);
+        let app, auth, storage, analytics;
+        
+        try {
+            app = initializeApp(firebaseConfig);
+            analytics = getAnalytics(app);
+            auth = getAuth(app);
+            storage = getStorage(app);
+            console.log('Firebase initialized successfully');
+        } catch (error) {
+            console.error('Firebase initialization error:', error);
+            document.getElementById('connection-status').innerHTML = '❌ Firebase initialization failed: ' + error.message;
+            document.getElementById('connection-status').className = 'connection-status error';
+        }
 
         // Global state
         let currentUser = null;
@@ -746,11 +756,11 @@ import { getAnalytics } from "firebase/analytics";
             googleBtn.disabled = true;
             googleBtn.innerHTML = '<span class="loading"></span>Signing in...';
 
-            const provider = new GoogleAuthProvider();
-            provider.addScope('email');
-            provider.addScope('profile');
-
             try {
+                const provider = new GoogleAuthProvider();
+                provider.addScope('email');
+                provider.addScope('profile');
+
                 const result = await signInWithPopup(auth, provider);
                 const user = result.user;
 
@@ -767,6 +777,8 @@ import { getAnalytics } from "firebase/analytics";
                     msg = 'You closed the sign-in popup. Try again.';
                 } else if (error.code === 'auth/popup-blocked') {
                     msg = 'Popup blocked. Please allow popups for this site.';
+                } else if (error.message) {
+                    msg = 'Google sign-in failed: ' + error.message;
                 }
 
                 showStatus(msg, 'error');
@@ -889,7 +901,64 @@ import { getAnalytics } from "firebase/analytics";
                 } else if (error.code === 'auth/wrong-password') {
                     errorMessage = 'Incorrect password. Please try again.';
                 } else if (error.code === 'auth/invalid-email') {
-                   errorMessage = 'Invalid email address format.';
+                    errorMessage = 'Invalid email address format.';
+                } else if (error.code === 'auth/too-many-requests') {
+                    errorMessage = 'Too many failed attempts. Please try again later.';
+                } else if (error.message) {
+                    errorMessage = `Sign-in failed: ${error.message}`;
+                }
+
+                showStatus(errorMessage, 'error');
+            } finally {
+                isAuthInProgress = false;
+                signinBtn.disabled = false;
+                signinBtn.innerHTML = 'Sign In';
+            }
+        };
+
+        const signUpWithEmail = async () => {
+            if (isAuthInProgress) return;
+            
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+            
+            if (!email || !password) {
+                showStatus('Please enter both email and password', 'error');
+                return;
+            }
+            
+            if (!email.includes('@') || !email.includes('.')) {
+                showStatus('Please enter a valid email address', 'error');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showStatus('Password must be at least 6 characters long', 'error');
+                return;
+            }
+            
+            isAuthInProgress = true;
+            
+          try {
+                signupBtn.disabled = true;
+                signupBtn.innerHTML = '<span class="loading"></span>Creating account...';
+                
+                const result = await createUserWithEmailAndPassword(auth, email, password);
+                console.log('Email sign-up successful:', result.user.email);
+                
+                // Send email verification
+                await sendEmailVerification(result.user);
+                showStatus('Account created! Please check your email to verify your account.', 'success');
+                hideEmailForm();
+                
+            } catch (error) {
+                console.error('Email sign-up error:', error);
+                let errorMessage = 'Account creation failed';
+                
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = 'An account with this email already exists. Try signing in instead.';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = 'Invalid email address format.';
                 } else if (error.code === 'auth/weak-password') {
                     errorMessage = 'Password is too weak. Please use at least 6 characters.';
                 } else if (error.message) {
@@ -907,22 +976,232 @@ import { getAnalytics } from "firebase/analytics";
         const signOut = async () => {
             try {
                 await firebaseSignOut(auth);
-                shareId = null;
+                console.log('User signed out');
                 showStatus('Signed out successfully', 'success');
+                shareId = null;
             } catch (error) {
                 console.error('Sign out error:', error);
                 showStatus('Sign out failed: ' + error.message, 'error');
             }
         };
 
-        // File management functions
-        const getUserPath = () => {
-            if (shareId) {
-                return `shared/${shareId}/`;
+        // Event listeners for authentication
+        googleBtn.addEventListener('click', signInWithGoogle);
+        anonymousBtn.addEventListener('click', signInAnonymouslyHandler);
+        emailBtn.addEventListener('click', showEmailForm);
+        joinShareBtn.addEventListener('click', () => {
+            shareIdInput.classList.toggle('show');
+            if (shareIdInput.classList.contains('show')) {
+                shareIdInput.focus();
             }
-            return currentUser ? `users/${currentUser.uid}/` : 'anonymous/';
+        });
+        
+        shareIdInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                joinByShareId();
+            }
+        });
+        
+        // Email form event listeners
+        signinBtn.addEventListener('click', signInWithEmail);
+        signupBtn.addEventListener('click', signUpWithEmail);
+        cancelBtn.addEventListener('click', hideEmailForm);
+        
+        // Handle Enter key in email form
+        emailInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                passwordInput.focus();
+            }
+        });
+        
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                signInWithEmail();
+            }
+        });
+        
+        logoutBtn.addEventListener('click', signOut);
+
+        // Auth state observer
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            
+            if (user) {
+                console.log('User authenticated:', user.email || user.uid);
+                authSection.style.display = 'none';
+                mainContent.classList.add('show');
+                userInfo.style.display = 'block';
+                
+                const displayName = user.displayName || user.email || (user.isAnonymous ? 'Guest User' : 'User');
+                userDisplay.textContent = displayName;
+                
+                if (user.isAnonymous && shareId) {
+                    userDisplay.textContent += ` (Share ID: ${shareId})`;
+                }
+                
+                isConnected = true;
+                updateConnectionStatus();
+                loadFiles();
+                
+            } else {
+                console.log('User not authenticated');
+                authSection.style.display = 'block';
+                mainContent.classList.remove('show');
+                userInfo.style.display = 'none';
+                isConnected = false;
+                updateConnectionStatus();
+                clearFiles();
+            }
+        });
+
+        // File operations
+        const getStoragePath = (fileName) => {
+            if (shareId) {
+                return `shared/${shareId}/${fileName}`;
+            }
+            return `files/${currentUser.uid}/${fileName}`;
         };
 
+        const uploadFile = async (file) => {
+            if (!file) return;
+            
+            if (file.size > MAX_FILE_SIZE) {
+                showStatus(`File "${file.name}" is too large. Maximum size is ${MAX_FILE_SIZE_TEXT}.`, 'error');
+                return;
+            }
+
+            try {
+                const fileName = file.name;
+                const storageRef = ref(storage, getStoragePath(fileName));
+                
+                showStatus(`Uploading ${fileName}...`, 'info');
+                
+                const snapshot = await uploadBytes(storageRef, file);
+                console.log('File uploaded:', snapshot.metadata.name);
+                
+                showStatus(`${fileName} uploaded successfully!`, 'success');
+                loadFiles();
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                showStatus(`Failed to upload ${file.name}: ${error.message}`, 'error');
+            }
+        };
+
+        const loadFiles = async () => {
+            if (!currentUser) return;
+            
+            try {
+                const folderPath = shareId ? `shared/${shareId}` : `files/${currentUser.uid}`;
+                const listRef = ref(storage, folderPath);
+                
+                const result = await listAll(listRef);
+                
+                if (result.items.length === 0) {
+                    filesContainer.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">📭</div>
+                            <div>No files uploaded yet. Start by uploading your first file!</div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const filePromises = result.items.map(async (itemRef) => {
+                    try {
+                        const metadata = await getMetadata(itemRef);
+                        const downloadURL = await getDownloadURL(itemRef);
+                        
+                        return {
+                            name: metadata.name,
+                            size: metadata.size,
+                            created: metadata.timeCreated,
+                            contentType: metadata.contentType,
+                            downloadURL: downloadURL,
+                            ref: itemRef
+                        };
+                    } catch (error) {
+                        console.error('Error loading file metadata:', error);
+                        return null;
+                    }
+                });
+                
+                const files = (await Promise.all(filePromises)).filter(file => file !== null);
+                
+                if (files.length === 0) {
+                    filesContainer.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">📭</div>
+                            <div>No files found</div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Sort files by creation date (newest first)
+                files.sort((a, b) => new Date(b.created) - new Date(a.created));
+                
+                filesContainer.innerHTML = files.map(file => `
+                    <div class="file-card">
+                        <div class="file-icon">${getFileIcon(file.contentType)}</div>
+                        <div class="file-name">${file.name}</div>
+                        <div class="file-info">
+                            Size: ${formatFileSize(file.size)}<br>
+                            Created: ${new Date(file.created).toLocaleDateString()}
+                        </div>
+                        <div class="file-actions">
+                            <button class="download-btn" onclick="downloadFile('${file.downloadURL}', '${file.name}')">
+                                Download
+                            </button>
+                            <button class="delete-btn" onclick="deleteFile('${file.name}')">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading files:', error);
+                filesContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">❌</div>
+                        <div>Error loading files: ${error.message}</div>
+                    </div>
+                `;
+            }
+        };
+
+        const deleteFile = async (fileName) => {
+            if (!confirm(`Are you sure you want to delete "${fileName}"?`)) return;
+            
+            try {
+                const fileRef = ref(storage, getStoragePath(fileName));
+                await deleteObject(fileRef);
+                
+                showStatus(`${fileName} deleted successfully!`, 'success');
+                loadFiles();
+                
+            } catch (error) {
+                console.error('Delete error:', error);
+                showStatus(`Failed to delete ${fileName}: ${error.message}`, 'error');
+            }
+        };
+
+        const downloadFile = (url, fileName) => {
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        // Make functions globally available
+        window.downloadFile = downloadFile;
+        window.deleteFile = deleteFile;
+
+        // Utility functions
         const formatFileSize = (bytes) => {
             if (bytes === 0) return '0 Bytes';
             const k = 1024;
@@ -931,176 +1210,20 @@ import { getAnalytics } from "firebase/analytics";
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         };
 
-        const getFileIcon = (fileName) => {
-            const ext = fileName.split('.').pop().toLowerCase();
-            const icons = {
-                pdf: '📄',
-                doc: '📝', docx: '📝',
-                txt: '📄',
-                jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', webp: '🖼️',
-                mp4: '🎬', avi: '🎬', mov: '🎬', mkv: '🎬',
-                mp3: '🎵', wav: '🎵', flac: '🎵', m4a: '🎵',
-                zip: '📦', rar: '📦', 7z: '📦',
-                js: '💻', html: '💻', css: '💻', py: '💻', java: '💻',
-                json: '⚙️', xml: '⚙️', csv: '📊', xlsx: '📊'
-            };
-            return icons[ext] || '📁';
-        };
-
-        const uploadFiles = async (files) => {
-            if (!currentUser) {
-                showStatus('Please sign in first', 'error');
-                return;
-            }
-
-            const userPath = getUserPath();
-            let successCount = 0;
-            let errorCount = 0;
-
-            for (const file of files) {
-                if (file.size > MAX_FILE_SIZE) {
-                    showStatus(`File "${file.name}" is too large. Max size: ${MAX_FILE_SIZE_TEXT}`, 'error');
-                    errorCount++;
-                    continue;
-                }
-
-                try {
-                    const timestamp = new Date().toISOString().split('T')[0];
-                    const fileName = `${timestamp}_${file.name}`;
-                    const storageRef = ref(storage, `${userPath}${fileName}`);
-                    
-                    showStatus(`Uploading ${file.name}...`, 'info');
-                    
-                    await uploadBytes(storageRef, file);
-                    successCount++;
-                    
-                } catch (error) {
-                    console.error('Upload error:', error);
-                    showStatus(`Failed to upload ${file.name}: ${error.message}`, 'error');
-                    errorCount++;
-                }
-            }
-
-            if (successCount > 0) {
-                showStatus(`Successfully uploaded ${successCount} file(s)`, 'success');
-                await loadFiles();
-            }
-
-            if (errorCount > 0) {
-                showStatus(`Failed to upload ${errorCount} file(s)`, 'error');
-            }
-        };
-
-        const loadFiles = async () => {
-            if (!currentUser) return;
-
-            try {
-                const userPath = getUserPath();
-                const storageRef = ref(storage, userPath);
-                const result = await listAll(storageRef);
-                
-                if (result.items.length === 0) {
-                    filesContainer.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-icon">📭</div>
-                            <div>No files uploaded yet</div>
-                        </div>
-                    `;
-                    return;
-                }
-
-                const filePromises = result.items.map(async (item) => {
-                    try {
-                        const [downloadURL, metadata] = await Promise.all([
-                            getDownloadURL(item),
-                            getMetadata(item)
-                        ]);
-
-                        const displayName = item.name.replace(/^\d{4}-\d{2}-\d{2}_/, '');
-                        
-                        return {
-                            name: displayName,
-                            fullName: item.name,
-                            size: metadata.size,
-                            uploadTime: metadata.timeCreated,
-                            downloadURL,
-                            ref: item
-                        };
-                    } catch (error) {
-                        console.error('Error loading file:', item.name, error);
-                        return null;
-                    }
-                });
-
-                const files = (await Promise.all(filePromises)).filter(file => file !== null);
-                
-                files.sort((a, b) => new Date(b.uploadTime) - new Date(a.uploadTime));
-                
-                renderFiles(files);
-                
-            } catch (error) {
-                console.error('Error loading files:', error);
-                showStatus('Failed to load files: ' + error.message, 'error');
-            }
-        };
-
-        const renderFiles = (files) => {
-            if (files.length === 0) {
-                filesContainer.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon">📭</div>
-                        <div>No files found</div>
-                    </div>
-                `;
-                return;
-            }
-
-            filesContainer.innerHTML = files.map(file => `
-                <div class="file-card">
-                    <div class="file-icon">${getFileIcon(file.name)}</div>
-                    <div class="file-name">${file.name}</div>
-                    <div class="file-info">
-                        Size: ${formatFileSize(file.size)}<br>
-                        Uploaded: ${new Date(file.uploadTime).toLocaleDateString()}
-                    </div>
-                    <div class="file-actions">
-                        <button class="download-btn" onclick="downloadFile('${file.downloadURL}', '${file.name}')">
-                            Download
-                        </button>
-                        <button class="delete-btn" onclick="deleteFile('${file.fullName}')">
-                            Delete
-                        </button>
-                    </div>
-                </div>
-            `).join('');
-        };
-
-        const downloadFile = (url, fileName) => {
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        };
-
-        const deleteFile = async (fileName) => {
-            if (!confirm(`Are you sure you want to delete "${fileName.replace(/^\d{4}-\d{2}-\d{2}_/, '')}"?`)) {
-                return;
-            }
-
-            try {
-                const userPath = getUserPath();
-                const fileRef = ref(storage, `${userPath}${fileName}`);
-                await deleteObject(fileRef);
-                
-                showStatus('File deleted successfully', 'success');
-                await loadFiles();
-                
-            } catch (error) {
-                console.error('Delete error:', error);
-                showStatus('Failed to delete file: ' + error.message, 'error');
-            }
+        const getFileIcon = (contentType) => {
+            if (!contentType) return '📄';
+            
+            if (contentType.startsWith('image/')) return '🖼️';
+            if (contentType.startsWith('video/')) return '🎥';
+            if (contentType.startsWith('audio/')) return '🎵';
+            if (contentType.includes('pdf')) return '📕';
+            if (contentType.includes('document') || contentType.includes('word')) return '📝';
+            if (contentType.includes('spreadsheet') || contentType.includes('excel')) return '📊';
+            if (contentType.includes('presentation') || contentType.includes('powerpoint')) return '📈';
+            if (contentType.includes('zip') || contentType.includes('rar')) return '📦';
+            if (contentType.includes('text')) return '📄';
+            
+            return '📄';
         };
 
         const showStatus = (message, type = 'info') => {
@@ -1108,96 +1231,53 @@ import { getAnalytics } from "firebase/analytics";
             statusDiv.className = `status-message status-${type}`;
             statusDiv.textContent = message;
             
-            statusContainer.innerHTML = '';
             statusContainer.appendChild(statusDiv);
             
             setTimeout(() => {
-                if (statusContainer.contains(statusDiv)) {
-                    statusContainer.removeChild(statusDiv);
+                if (statusDiv.parentNode) {
+                    statusDiv.parentNode.removeChild(statusDiv);
                 }
             }, 5000);
         };
 
-        // Event listeners with debugging
-        console.log('Setting up event listeners...');
-        
-        googleBtn.addEventListener('click', (e) => {
-            console.log('Google button clicked');
-            e.preventDefault();
-            signInWithGoogle();
-        });
-        
-        anonymousBtn.addEventListener('click', (e) => {
-            console.log('Anonymous button clicked');
-            e.preventDefault();
-            signInAnonymouslyHandler();
-        });
-        
-        emailBtn.addEventListener('click', (e) => {
-            console.log('Email button clicked');
-            e.preventDefault();
-            showEmailForm();
-        });
-        
-        joinShareBtn.addEventListener('click', () => {
-            if (shareIdInput.classList.contains('show')) {
-                joinByShareId();
+        const updateConnectionStatus = () => {
+            if (isConnected) {
+                connectionStatus.innerHTML = '✅ Connected to Firebase';
+                connectionStatus.className = 'connection-status';
             } else {
-                shareIdInput.classList.add('show');
-                shareIdInput.focus();
+                connectionStatus.innerHTML = '❌ Not connected';
+                connectionStatus.className = 'connection-status error';
             }
+        };
+
+        const clearFiles = () => {
+            filesContainer.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">🔒</div>
+                    <div>Please sign in to view your files</div>
+                </div>
+            `;
+        };
+
+        // File upload event handlers
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            files.forEach(uploadFile);
+            e.target.value = '';
         });
 
-        shareIdInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                joinByShareId();
-            }
-        });
-
-        logoutBtn.addEventListener('click', signOut);
-        refreshBtn.addEventListener('click', loadFiles);
-
-        // Email form events
-        signinBtn.addEventListener('click', signInWithEmail);
-        signupBtn.addEventListener('click', signUpWithEmail);
-        cancelBtn.addEventListener('click', hideEmailForm);
-
-        emailInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                passwordInput.focus();
-            }
-        });
-
-        passwordInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                signInWithEmail();
-            }
-        });
-
-        // Upload events
         chooseFilesBtn.addEventListener('click', () => {
             fileInput.click();
         });
 
         uploadArea.addEventListener('click', () => {
-            if (!uploadArea.classList.contains('disabled')) {
-                fileInput.click();
-            }
+            fileInput.click();
         });
 
-        fileInput.addEventListener('change', (e) => {
-            const files = Array.from(e.target.files);
-            if (files.length > 0) {
-                uploadFiles(files);
-            }
-        });
-
-        // Drag and drop events
+        // Drag and drop handlers
         uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
-            if (!uploadArea.classList.contains('disabled')) {
-                uploadArea.classList.add('dragover');
-            }
+            uploadArea.classList.add('dragover');
         });
 
         uploadArea.addEventListener('dragleave', () => {
@@ -1208,74 +1288,21 @@ import { getAnalytics } from "firebase/analytics";
             e.preventDefault();
             uploadArea.classList.remove('dragover');
             
-            if (uploadArea.classList.contains('disabled')) return;
-            
             const files = Array.from(e.dataTransfer.files);
-            if (files.length > 0) {
-                uploadFiles(files);
-            }
+            files.forEach(uploadFile);
         });
 
-        // Auth state observer
-        onAuthStateChanged(auth, (user) => {
-            currentUser = user;
-            
-            if (user) {
-                authSection.style.display = 'none';
-                mainContent.classList.add('show');
-                userInfo.style.display = 'block';
-                
-                const displayName = user.displayName || user.email || 'Anonymous User';
-                userDisplay.textContent = displayName;
-                
-                isConnected = true;
-                connectionStatus.textContent = 'Connected to Firebase';
-                connectionStatus.className = 'connection-status';
-                
-                uploadArea.classList.remove('disabled');
-                
-                loadFiles();
-                
-            } else {
-                authSection.style.display = 'block';
-                mainContent.classList.remove('show');
-                userInfo.style.display = 'none';
-                
-                isConnected = false;
-                connectionStatus.textContent = 'Not connected';
-                connectionStatus.className = 'connection-status error';
-                
-                uploadArea.classList.add('disabled');
-                filesContainer.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon">🔒</div>
-                        <div>Please sign in to view your files</div>
-                    </div>
-                `;
-            }
-        });
+        // Refresh files button
+        refreshBtn.addEventListener('click', loadFiles);
 
-        // Make functions globally available
-        window.downloadFile = downloadFile;
-        window.deleteFile = deleteFile;
+        // Initialize connection status
+        updateConnectionStatus();
 
-        // Initialize with better error handling
-        console.log('SKVault starting initialization...');
-        
-        // Add a startup message
-        connectionStatus.innerHTML = '<span class="loading"></span>Initializing Firebase...';
-        
-        // Test if Firebase is properly loaded
-        if (typeof initializeApp === 'undefined') {
-            console.error('Firebase modules not loaded properly');
-            connectionStatus.innerHTML = '❌ Firebase modules failed to load';
-            connectionStatus.className = 'connection-status error';
-        } else {
-            console.log('Firebase modules loaded successfully');
-            console.log('Available auth methods:', { signInWithPopup, signInAnonymously, signInWithEmailAndPassword });
-        }
-        
-        console.log('SKVault initialized - ready for authentication');
+        // Prevent default drag behaviors on the document
+        document.addEventListener('dragover', (e) => e.preventDefault());
+        document.addEventListener('drop', (e) => e.preventDefault());
+
+        console.log('SKVault initialized successfully');
     </script>
 </body>
 </html>
