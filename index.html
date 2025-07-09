@@ -963,7 +963,33 @@
             }
         };
 
-      
+        const signInAnonymouslyHandler = async () => {
+    if (isAuthInProgress) return;
+    isAuthInProgress = true;
+
+    try {
+        anonymousBtn.disabled = true;
+        anonymousBtn.innerHTML = '<span class="loading"></span>Signing in...';
+
+        const result = await signInAnonymously(auth);
+        const user = result.user;
+
+        if (!user) throw new Error('Anonymous login failed');
+
+        // Generate a new share ID for guest users
+        shareId = 'guest-' + Math.random().toString(36).substring(2, 10);
+        
+        console.log('[Guest Login]', user.uid, 'Share ID:', shareId);
+        showStatus(`Signed in as guest! Your Share ID: ${shareId}`, 'success');
+    } catch (error) {
+        console.error('Anonymous sign-in error:', error);
+        showStatus('Guest login failed: ' + error.message, 'error');
+    } finally {
+        isAuthInProgress = false;
+        anonymousBtn.disabled = false;
+        anonymousBtn.innerHTML = '<span>👤</span>Continue as Guest';
+    }
+};
 
         const joinByShareId = async () => {
             const inputShareId = shareIdInput.value.trim();
@@ -1285,7 +1311,7 @@ const signUpWithEmail = async () => {
         
         logoutBtn.addEventListener('click', signOut);
 
-     // Replace the problematic section in onAuthStateChanged function
+      // Replace the problematic section in onAuthStateChanged function
 // Find this section around line 580-600 and replace it:
 
 onAuthStateChanged(auth, (user) => {
@@ -1335,7 +1361,6 @@ onAuthStateChanged(auth, (user) => {
         shareId = null;
     }
 });
-
 
 // Also update the signInAnonymouslyHandler function to show share ID permanently:
 const signInAnonymouslyHandler = async () => {
