@@ -1311,88 +1311,48 @@ const signUpWithEmail = async () => {
         
         logoutBtn.addEventListener('click', signOut);
 
-      // Replace the problematic section in onAuthStateChanged function
-// Find this section around line 580-600 and replace it:
-
-onAuthStateChanged(auth, (user) => {
-    currentUser = user;
+        // Auth state observer - Updated version
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            
+            if (user) {
+                console.log('User authenticated:', user.email || user.uid);
+                authSection.style.display = 'none';
+                mainContent.classList.add('show');
+                userInfo.style.display = 'block';
+                
+                const displayName = user.displayName || user.email || (user.isAnonymous ? 'Guest User' : 'User');
+                userDisplay.textContent = displayName;
+                
+                function showShareIdDisplay(shareId, autoHide = false) {
+    const display = document.getElementById('share-id-display');
+    display.textContent = `Share ID: ${shareId}`;
+    display.style.display = 'block';
     
-    if (user) {
-        console.log('User authenticated:', user.email || user.uid);
-        authSection.style.display = 'none';
-        mainContent.classList.add('show');
-        userInfo.style.display = 'block';
-        
-        const displayName = user.displayName || user.email || (user.isAnonymous ? 'Guest User' : 'User');
-        userDisplay.textContent = displayName;
-        
-        // REMOVE THIS PROBLEMATIC FUNCTION - it's causing the auto-hide
-        // function showShareIdDisplay(shareId, autoHide = false) {
-        //     const display = document.getElementById('share-id-display');
-        //     display.textContent = `Share ID: ${shareId}`;
-        //     display.style.display = 'block';
-        //     
-        //     // Only auto-hide if explicitly requested
-        //     if (autoHide) {
-        //         setTimeout(() => {
-        //             display.style.display = 'none';
-        //         }, 4000);
-        //     }
-        // }
-        
-        // ADD THIS INSTEAD: Show share ID permanently for guest users
-        if (user.isAnonymous && shareId) {
-            showShareIdDisplay(shareId);
-        }
-        
-        isConnected = true;
-        updateConnectionStatus();
-        loadFiles();
-        
-    } else {
-        console.log('User not authenticated');
-        authSection.style.display = 'block';
-        mainContent.classList.remove('show');
-        userInfo.style.display = 'none';
-        hideShareIdDisplay();
-        isConnected = false;
-        updateConnectionStatus();
-        clearFiles();
-        shareId = null;
+    // Only auto-hide if explicitly requested
+    if (autoHide) {
+        setTimeout(() => {
+            display.style.display = 'none';
+        }, 600000);
     }
-});
-
-// Also update the signInAnonymouslyHandler function to show share ID permanently:
-const signInAnonymouslyHandler = async () => {
-    if (isAuthInProgress) return;
-    isAuthInProgress = true;
-
-    try {
-        anonymousBtn.disabled = true;
-        anonymousBtn.innerHTML = '<span class="loading"></span>Signing in...';
-
-        const result = await signInAnonymously(auth);
-        const user = result.user;
-
-        if (!user) throw new Error('Anonymous login failed');
-
-        // Generate a new share ID for guest users
-        shareId = 'guest-' + Math.random().toString(36).substring(2, 10);
-        
-        // Show share ID permanently (no auto-hide)
-        showShareIdDisplay(shareId);
-        
-        console.log('[Guest Login]', user.uid, 'Share ID:', shareId);
-        showStatus(`Signed in as guest! Your Share ID: ${shareId}`, 'success');
-    } catch (error) {
-        console.error('Anonymous sign-in error:', error);
-        showStatus('Guest login failed: ' + error.message, 'error');
-    } finally {
-        isAuthInProgress = false;
-        anonymousBtn.disabled = false;
-        anonymousBtn.innerHTML = '<span>👤</span>Continue as Guest';
-    }
-};
+}
+                
+                isConnected = true;
+                updateConnectionStatus();
+                loadFiles();
+                
+            } else {
+                console.log('User not authenticated');
+                authSection.style.display = 'block';
+                mainContent.classList.remove('show');
+                userInfo.style.display = 'none';
+                hideShareIdDisplay();
+                isConnected = false;
+                updateConnectionStatus();
+                clearFiles();
+                shareId = null;
+            }
+        });
 
         // File operations
         const getStoragePath = (fileName) => {
