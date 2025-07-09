@@ -1325,12 +1325,12 @@ const signUpWithEmail = async () => {
                 userDisplay.textContent = displayName;
                 
                 // Show share ID for anonymous users
-                if (user.isAnonymous && shareId) {
-                    showShareIdDisplay(shareId);
-                    userDisplay.textContent += ` (Share ID: ${shareId})`;
-                } else {
-                    hideShareIdDisplay();
-                }
+               // Show share ID for anonymous users
+if (user.isAnonymous && shareId) {
+    showShareIdDisplay(shareId);
+    userDisplay.textContent += ` (Share ID: ${shareId})`;
+}
+// Note: Removed the else clause that was hiding the share ID display
                 
                 isConnected = true;
                 updateConnectionStatus();
