@@ -1128,64 +1128,54 @@ const hideEmailForm = () => {
             }
         };
 
-       const signUpWithEmail = async () => {
-    if (isAuthInProgress) return;
+     // Replace the signUpWithEmail function (around line 320-380) with this corrected version:
 
+const signUpWithEmail = async () => {
+    if (isAuthInProgress) return;
+    
     const email = emailInput.value.trim();
     const password = passwordInput.value;
-
+    
     if (!email || !password) {
         showStatus('Please enter both email and password', 'error');
         return;
     }
-
+    
     if (!email.includes('@') || !email.includes('.')) {
         showStatus('Please enter a valid email address', 'error');
         return;
     }
-
+    
     if (password.length < 6) {
         showStatus('Password must be at least 6 characters long', 'error');
         return;
     }
-
+    
     isAuthInProgress = true;
-
+    
     try {
         signupBtn.disabled = true;
         signupBtn.innerHTML = '<span class="loading"></span>Creating account...';
-
+        
         const result = await createUserWithEmailAndPassword(auth, email, password);
         console.log('Email sign-up successful:', result.user.email);
-
+        
+        // Send email verification with proper configuration
         try {
-            await sendEmailVerification(result.user, {
-                url: window.location.origin,
-                handleCodeInApp: false
-            });
+            await sendEmailVerification(result.user);
             showStatus(`Account created successfully! Please check your email (${email}) for a verification link. Check your spam folder if you don't see it.`, 'success');
             console.log('Verification email sent to:', email);
         } catch (verificationError) {
             console.error('Email verification error:', verificationError);
-            showStatus(`Account created but verification email failed to send: ${verificationError.message}. You can still sign in.`, 'error');
-
-            // 🔁 Fallback attempt
-            if (!result.user.emailVerified) {
-                try {
-                    await sendEmailVerification(auth.currentUser);
-                    console.log("Fallback verification email sent via auth.currentUser");
-                } catch (secondError) {
-                    console.warn("Fallback verification attempt failed:", secondError);
-                }
-            }
+            showStatus(`Account created successfully! You can sign in now. (Verification email could not be sent: ${verificationError.message})`, 'info');
         }
-
+        
         hideEmailForm();
-
+        
     } catch (error) {
         console.error('Email sign-up error:', error);
         let errorMessage = 'Account creation failed';
-
+        
         if (error.code === 'auth/email-already-in-use') {
             errorMessage = 'An account with this email already exists. Try signing in instead.';
         } else if (error.code === 'auth/invalid-email') {
@@ -1205,7 +1195,6 @@ const hideEmailForm = () => {
         signupBtn.innerHTML = 'Sign Up';
     }
 };
-
 
         const signOut = async () => {
             try {
