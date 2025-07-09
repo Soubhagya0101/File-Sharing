@@ -1077,56 +1077,73 @@ const hideEmailForm = () => {
     isPasswordVisible = false;
 };
 
-        const signInWithEmail = async () => {
-            if (isAuthInProgress) return;
+     const signInWithEmail = async () => {
+    if (isAuthInProgress) return;
+    
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    
+    if (!email || !password) {
+        showStatus('Please enter both email and password', 'error');
+        return;
+    }
+    
+    if (!email.includes('@') || !email.includes('.')) {
+        showStatus('Please enter a valid email address', 'error');
+        return;
+    }
+    
+    isAuthInProgress = true;
+    
+    try {
+        signinBtn.disabled = true;
+        signinBtn.innerHTML = '<span class="loading"></span>Signing in...';
+        
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        
+        // Check if email is verified
+        if (!result.user.emailVerified) {
+            // Sign out the user
+            await firebaseSignOut(auth);
             
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
+            // Offer to resend verification email
+            showStatus(`Please verify your email address first. Check your email (${email}) for a verification link. Check your spam folder if you don't see it.`, 'error');
             
-            if (!email || !password) {
-                showStatus('Please enter both email and password', 'error');
-                return;
-            }
+            // Optionally, you can add a "Resend verification email" button here
+            setTimeout(() => {
+                showStatus('Need a new verification email? Try signing up again with the same email to get a new verification link.', 'info');
+            }, 3000);
             
-            if (!email.includes('@') || !email.includes('.')) {
-                showStatus('Please enter a valid email address', 'error');
-                return;
-            }
-            
-            isAuthInProgress = true;
-            
-            try {
-                signinBtn.disabled = true;
-                signinBtn.innerHTML = '<span class="loading"></span>Signing in...';
-                
-                const result = await signInWithEmailAndPassword(auth, email, password);
-                console.log('Email sign-in successful:', result.user.email);
-                showStatus('Email sign-in successful!', 'success');
-                hideEmailForm();
-                
-            } catch (error) {
-                console.error('Email sign-in error:', error);
-                let errorMessage = 'Email sign-in failed';
-                
-                if (error.code === 'auth/user-not-found') {
-                    errorMessage = 'No account found with this email. Try signing up instead.';
-                } else if (error.code === 'auth/wrong-password') {
-                    errorMessage = 'Incorrect password. Please try again.';
-                } else if (error.code === 'auth/invalid-email') {
-                    errorMessage = 'Invalid email address format.';
-                } else if (error.code === 'auth/too-many-requests') {
-                    errorMessage = 'Too many failed attempts. Please try again later.';
-                } else if (error.message) {
-                    errorMessage = `Sign-in failed: ${error.message}`;
-                }
+            return;
+        }
+        
+        console.log('Email sign-in successful:', result.user.email);
+        showStatus('Email sign-in successful!', 'success');
+        hideEmailForm();
+        
+    } catch (error) {
+        console.error('Email sign-in error:', error);
+        let errorMessage = 'Email sign-in failed';
+        
+        if (error.code === 'auth/user-not-found') {
+            errorMessage = 'No account found with this email. Try signing up instead.';
+        } else if (error.code === 'auth/wrong-password') {
+            errorMessage = 'Incorrect password. Please try again.';
+        } else if (error.code === 'auth/invalid-email') {
+            errorMessage = 'Invalid email address format.';
+        } else if (error.code === 'auth/too-many-requests') {
+            errorMessage = 'Too many failed attempts. Please try again later.';
+        } else if (error.message) {
+            errorMessage = `Sign-in failed: ${error.message}`;
+        }
 
-                showStatus(errorMessage, 'error');
-            } finally {
-                isAuthInProgress = false;
-                signinBtn.disabled = false;
-                signinBtn.innerHTML = 'Sign In';
-            }
-        };
+        showStatus(errorMessage, 'error');
+    } finally {
+        isAuthInProgress = false;
+        signinBtn.disabled = false;
+        signinBtn.innerHTML = 'Sign In';
+    }
+};
 
      // Replace the signUpWithEmail function (around line 320-380) with this corrected version:
 
@@ -1160,15 +1177,18 @@ const signUpWithEmail = async () => {
         const result = await createUserWithEmailAndPassword(auth, email, password);
         console.log('Email sign-up successful:', result.user.email);
         
-        // Send email verification with proper configuration
+        // Send email verification
         try {
             await sendEmailVerification(result.user);
-            showStatus(`Account created successfully! Please check your email (${email}) for a verification link. Check your spam folder if you don't see it.`, 'success');
             console.log('Verification email sent to:', email);
         } catch (verificationError) {
             console.error('Email verification error:', verificationError);
-            showStatus(`Account created successfully! You can sign in now. (Verification email could not be sent: ${verificationError.message})`, 'info');
         }
+        
+        // Sign out the user immediately after account creation
+        await firebaseSignOut(auth);
+        
+        showStatus(`Account created successfully! Please check your email (${email}) for a verification link and then sign in. Check your spam folder if you don't see it.`, 'success');
         
         hideEmailForm();
         
@@ -1538,20 +1558,23 @@ const signUpWithEmail = async () => {
         };
 
         // File upload event handlers
-        fileInput.addEventListener('change', (e) => {
-            const files = Array.from(e.target.files);
-            files.forEach(uploadFile);
-            e.target.value = '';
-        });
+fileInput.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(uploadFile);
+    e.target.value = '';
+});
 
-        chooseFilesBtn.addEventListener('click', () => {
-            fileInput.click();
-        });
+chooseFilesBtn.addEventListener('click', (e) => {
+    e.stopPropagation(); // Prevent event from bubbling up to uploadArea
+    fileInput.click();
+});
 
-        uploadArea.addEventListener('click', () => {
-            fileInput.click();
-        });
-
+uploadArea.addEventListener('click', (e) => {
+    // Only trigger file picker if the click wasn't on the button
+    if (e.target !== chooseFilesBtn && !chooseFilesBtn.contains(e.target)) {
+        fileInput.click();
+    }
+});
         // Drag and drop handlers
         uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
