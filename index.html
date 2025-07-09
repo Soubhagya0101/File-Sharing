@@ -1327,18 +1327,18 @@ onAuthStateChanged(auth, (user) => {
         userDisplay.textContent = displayName;
         
         // REMOVE THIS PROBLEMATIC FUNCTION - it's causing the auto-hide
-        // function showShareIdDisplay(shareId, autoHide = false) {
-        //     const display = document.getElementById('share-id-display');
-        //     display.textContent = `Share ID: ${shareId}`;
-        //     display.style.display = 'block';
-        //     
-        //     // Only auto-hide if explicitly requested
-        //     if (autoHide) {
-        //         setTimeout(() => {
-        //             display.style.display = 'none';
-        //         }, 4000);
-        //     }
-        // }
+   function showShareIdDisplay(shareId, autoHide = false) {
+  const display = document.getElementById('share-id-display');
+         display.textContent = `Share ID: ${shareId}`;
+        display.style.display = 'block';
+         
+           // Only auto-hide if explicitly requested
+    if (autoHide) {
+         setTimeout(() => {
+          display.style.display = 'none';
+     }, 4000);
+           }
+     }
         
         // ADD THIS INSTEAD: Show share ID permanently for guest users
         if (user.isAnonymous && shareId) {
